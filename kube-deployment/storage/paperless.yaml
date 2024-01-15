@@ -1,0 +1,182 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paperless-config
+  namespace: storage
+data:
+  paperless_url: https://paper.example.io
+  paperless_mariadb_host: 127.0.0.1
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: paperless-secret
+  namespace: storage
+type: Opaque
+stringData:
+  paperless_mariadb_username: xxxxx
+  paperless_mariadb_password: xxxxx
+  paperless_secret_key: xxxxx
+  paperless_admin_username: xxxxx
+  paperless_admin_password: xxxxx
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: ssd-claim-paperless
+  namespace: storage
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-client
+  resources:
+    requests:
+      storage: 150Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paperless-deployment
+  labels:
+    app: paperless
+  namespace: storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: paperless
+  template:
+    metadata:
+      labels:
+        app: paperless
+    spec:
+      volumes:
+        - name: paperless-storage
+          persistentVolumeClaim:
+            claimName: ssd-claim-paperless
+      containers:
+        - name: redis
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+        - name: mysql
+          image: mariadb
+          volumeMounts:
+            - name: paperless-storage
+              mountPath: /var/lib/mysql
+              subPath: database
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_mariadb_username
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_mariadb_password
+            - name: MARIADB_RANDOM_ROOT_PASSWORD
+              value: "1"
+            - name: MARIADB_DATABASE
+              value: "paperless"
+        - name: paperless
+          image: ghcr.io/paperless-ngx/paperless-ngx:latest
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - mountPath: /usr/src/paperless/data
+              name: paperless-storage
+              subPath: data
+            - mountPath: /usr/src/paperless/media
+              name: paperless-storage
+              subPath: media
+            - mountPath: /usr/src/paperless/export
+              name: paperless-storage
+              subPath: export
+            - mountPath: /usr/src/paperless/consume
+              name: paperless-storage
+              subPath: consume
+          env:
+            - name: PAPERLESS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: paperless-config
+                  key: paperless_url
+            - name: PAPERLESS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_secret_key
+            - name: PAPERLESS_TIME_ZONE
+              value: Europe/Berlin
+            - name: PAPERLESS_OCR_LANGUAGE
+              value: deu
+            - name: PAPERLESS_OCR_LANGUAGES
+              value: eng deu
+            - name: PAPERLESS_REDIS
+              value: redis://127.0.0.1
+            - name: PAPERLESS_DBENGINE
+              value: mariadb
+            - name: PAPERLESS_DBHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: paperless-config
+                  key: paperless_mariadb_host
+            - name: PAPERLESS_DBUSER
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_mariadb_username
+            - name: PAPERLESS_DBPASS
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_mariadb_password
+            - name: PAPERLESS_DBPORT
+              value: '3306'
+            - name: PAPERLESS_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_admin_username
+            - name: PAPERLESS_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: paperless-secret
+                  key: paperless_admin_password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: paperless-service
+  namespace: storage
+spec:
+  selector:
+    app: paperless
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: paperless-ingress
+  namespace: storage
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  rules:
+    - host: paper.example.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paperless-service
+                port:
+                  number: 8000
