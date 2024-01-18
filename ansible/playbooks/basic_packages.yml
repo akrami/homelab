@@ -1,0 +1,6 @@
+---
+- name: Install basic packages
+  hosts: all
+  roles:
+    - role: install_packages
+      package_names: [vim, htop]

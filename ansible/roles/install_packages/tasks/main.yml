@@ -1,0 +1,7 @@
+---
+- name: Update repositories cache and install packages
+  become: true
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    update_cache: true
+  with_items: "{{ package_names }}"
