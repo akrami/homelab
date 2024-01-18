@@ -215,6 +215,7 @@ metadata:
     name: nextcloud-ingress
     namespace: storage
     annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: "100m"
         nginx.ingress.kubernetes.io/configuration-snippet: |
             more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains; preload";
             location = /.well-known/carddav {

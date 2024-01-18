@@ -329,6 +329,8 @@ kind: Ingress
 metadata:
   name: n8n-ingress
   namespace: automation
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
 spec:
   rules:
     - host: flow.example.io
