@@ -1,0 +1,21 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n8n-redis-deployment
+  namespace: automation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: n8n-redis
+  template:
+    metadata:
+      labels:
+        app: n8n-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7
+          ports:
+            - containerPort: 6379

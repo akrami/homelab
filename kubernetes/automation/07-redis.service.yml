@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: n8n-redis-service
+  namespace: automation
+spec:
+  selector:
+    app: n8n-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

@@ -1,0 +1,62 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: n7n-postgres-deployment
+  namespace: automation
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: n8n-postgres
+  template:
+    metadata:
+      labels:
+        app: n8n-postgres
+    spec:
+      volumes:
+        - name: n8n-postgres-storage
+          persistentVolumeClaim:
+            claimName: nfs-pvc-n8n
+        - name: n8n-postgres-script
+          configMap:
+            name: n8n-postgres-script
+      containers:
+        - name: postgres
+          image: postgres:11
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: n8n-postgres-storage
+              subPath: database
+            - mountPath: /docker-entrypoint-initdb.d
+              name: n8n-postgres-script
+              readOnly: true
+          env:
+            - name: POSTGRES_USER
+              value: root
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secret
+                  key: DB_ROOT_PASSWORD
+            - name: POSTGRES_NON_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secret
+                  key: DB_POSTGRESDB_USER
+            - name: POSTGRES_NON_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secret
+                  key: DB_POSTGRESDB_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: n8n-secret
+                  key: DB_POSTGRESDB_DATABASE
+            - name: POSTGRES_HOST
+              value: n8n-postgres-service.automation.svc.cluster.local
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
