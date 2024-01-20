@@ -1,0 +1,196 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-server-config
+  labels:
+    name: prometheus-server-config
+  namespace: monitoring
+data:
+  prometheus.yml: |-
+    global:
+      evaluation_interval: 60s
+      scrape_interval: 15s
+      scrape_timeout: 10s
+      external_labels:
+        cluster: kubernetes-homelab
+    alerting:
+      alertmanagers:
+        - static_configs:
+          - targets:
+    rule_files:
+      - /etc/prometheus/prometheus.rules
+
+    scrape_configs:
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+        - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+          action: keep
+          regex: default;kubernetes;https
+
+      #--------------------------------------------
+      # Scrape config for nodes (kubelet).
+      #--------------------------------------------
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+        - role: node
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+
+      #--------------------------------------------
+      # Scrape config for service endpoints. This will
+      # scrape node-exporter and kube-state-metrics services.
+      # You need this for the following Grafana dashboards:
+      # - Kubernetes Cluster Summary
+      # - Node Exporter Full
+      #--------------------------------------------
+      - job_name: kubernetes-service-endpoints
+        kubernetes_sd_configs:
+        - role: endpoints
+        relabel_configs:
+        - action: keep
+          regex: true
+          source_labels:
+          - __meta_kubernetes_service_annotation_prometheus_io_scrape
+        - action: replace
+          regex: (https?)
+          source_labels:
+          - __meta_kubernetes_service_annotation_prometheus_io_scheme
+          target_label: __scheme__
+        - action: replace
+          regex: (.+)
+          source_labels:
+          - __meta_kubernetes_service_annotation_prometheus_io_path
+          target_label: __metrics_path__
+        - action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          source_labels:
+          - __address__
+          - __meta_kubernetes_service_annotation_prometheus_io_port
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_service_label_(.+)
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_namespace
+          target_label: kubernetes_namespace
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_service_name
+          target_label: kubernetes_name
+        - action: replace
+          source_labels:
+          - __meta_kubernetes_pod_node_name
+          target_label: kubernetes_node
+
+      #--------------------------------------------
+      # Scrape config for pods.
+      #--------------------------------------------
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - action: labelmap
+          regex: __meta_kubernetes_pod_label_(.+)
+        - source_labels: [__meta_kubernetes_namespace]
+          action: replace
+          target_label: kubernetes_namespace
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+        - source_labels: [__meta_kubernetes_pod_name, __address__]
+          action: drop
+          regex: "loki-0;.*:(9095|7946)"
+
+      #--------------------------------------------
+      # Scrape config for cadvisor.
+      #--------------------------------------------
+      - job_name: 'kubernetes-cadvisor'
+        kubernetes_sd_configs:
+        - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+        - action: labelmap
+          regex: __meta_kubernetes_node_label_(.+)
+        - target_label: __address__
+          replacement: kubernetes.default.svc:443
+        - source_labels: [__meta_kubernetes_node_name]
+          regex: (.+)
+          target_label: __metrics_path__
+          replacement: /api/v1/nodes/${1}/proxy/metrics/cadvisor
+
+      #--------------------------------------------
+      # Scrape static config for dns
+      #--------------------------------------------
+      - job_name: 'kube-dns'
+        static_configs:
+          - targets: ['10.42.0.12:9153']
+            labels:
+              alias: kube-dns
+
+      #--------------------------------------------
+      # Scrape static config for prometheus
+      #--------------------------------------------
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+            labels:
+              alias: prometheus
+
+      #--------------------------------------------
+      # Scrape static config for physical nodes
+      #--------------------------------------------
+      - job_name: 'nodes'
+        static_configs:
+          - targets: ['192.168.178.201:9100']
+            labels:
+              node: master
+              model: rpi4
+          - targets: ['192.168.178.202:9100']
+            labels:
+              node: worker
+              model: rpi4
+          - targets: ['192.168.178.203:9100']
+            labels:
+              node: worker
+              model: rpi4
+          - targets: ['192.168.178.204:9100']
+            labels:
+              node: worker
+              model: rpi4
+
+  prometheus.rules: |-
+    groups:

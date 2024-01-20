@@ -3,4 +3,4 @@
   hosts: all
   roles:
     - role: install_packages
-      package_names: [vim, htop]
+      package_names: [vim, htop, prometheus-node-exporter]

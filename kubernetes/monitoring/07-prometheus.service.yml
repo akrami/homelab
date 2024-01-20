@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: monitoring
+  labels:
+    app: prometheus-server
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 192.168.179.102
+    prometheus.io/scrape: 'true'
+    prometheus.io/port: '9090'
+spec:
+  selector:
+    app: prometheus-server
+  type: LoadBalancer
+  ports:
+    - name: dashboard
+      protocol: TCP
+      port: 9090

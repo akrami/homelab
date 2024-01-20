@@ -1,0 +1,93 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+  labels:
+    app: prometheus-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-server
+  template:
+    metadata:
+      labels:
+        app: prometheus-server
+    spec:
+      # Deployment has PodAntiAffinity configured to ensure that
+      # the scheduler does not co-locate replicas on a single node.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - prometheus-server
+              topologyKey: "kubernetes.io/hostname"
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus
+          imagePullPolicy: Always
+          args:
+            - "--storage.tsdb.retention.time=30d"
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--enable-feature=expand-external-labels"
+            - "--web.enable-lifecycle"
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          resources:
+            limits:
+              memory: 3Gi
+              cpu: 1000m
+            requests:
+              memory: 1536Mi
+              cpu: 150m
+          volumeMounts:
+            - name: prometheus-config-volume
+              mountPath: /etc/prometheus/
+              readOnly: true
+            - name: prometheus-storage-volume
+              mountPath: /prometheus/
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: 9090
+              scheme: HTTP
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60
+      volumes:
+        - name: prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: prometheus-server-config
+        - name: prometheus-storage-volume
+          persistentVolumeClaim:
+            claimName: ssd-claim-prometheus
+  strategy:
+    type: Recreate
