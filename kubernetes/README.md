@@ -22,7 +22,7 @@ helm install nfs-subdir-external-provisioner nfs-subdir-external-provisioner/nfs
 ```BASH
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.12/config/manifests/metallb-native.yaml
 # IP pool and L2Advertisement configuration
-kubectl apply -f metallb/metallb.yml
+kubectl apply -f metallb/*.yml
 ```
 
 ### Install ingress-nginx
