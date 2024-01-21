@@ -2,6 +2,8 @@
 
 Here I keep all my home server configuration and workflows.
 
+![Homelab Diagram](homelab.jpg)
+
 Currently I have a cluster of 4 raspberrypi compute modules on a board:
 
 ```
