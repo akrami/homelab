@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-dns-service
+  namespace: home
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: 192.168.179.101
+spec:
+  selector:
+    app: pihole
+  type: LoadBalancer
+  ports:
+    - name: tcp-53
+      protocol: TCP
+      port: 53
+    - name: udp-53
+      protocol: UDP
+      port: 53
