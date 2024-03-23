@@ -1,0 +1,35 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  namespace: default
+  labels:
+    app: default-web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: default-web
+  template:
+    metadata:
+      name: default-web
+      labels:
+        app: default-web
+    spec:
+      containers:
+        - name: web
+          image: joseluisq/static-web-server
+          imagePullPolicy: Always
+          ports:
+            - name: web
+              containerPort: 80
+          volumeMounts:
+            - name: index-file
+              mountPath: /public/index.html
+              subPath: index.html
+      restartPolicy: Always
+      volumes:
+        - name: index-file
+          configMap:
+            name: index-config
