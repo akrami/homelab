@@ -1,0 +1,71 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: assistant
+  name: assistant
+  namespace: home
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: assistant
+  template:
+    metadata:
+      labels:
+        app: assistant
+    spec:
+      hostNetwork: true
+      containers:
+        - name: home-assistant-app
+          image: "ghcr.io/home-assistant/home-assistant:stable"
+          imagePullPolicy: Always
+          securityContext:
+            privileged: null
+          env:
+            - name: TZ
+              value: "Europe/Berlin"
+          ports:
+            - name: http
+              containerPort: 8123
+              protocol: TCP
+          resources: {}
+          livenessProbe:
+            tcpSocket:
+              port: 8123
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8123
+            initialDelaySeconds: 0
+            failureThreshold: 3
+            timeoutSeconds: 1
+            periodSeconds: 10
+          startupProbe:
+            tcpSocket:
+              port: 8123
+            initialDelaySeconds: 0
+            failureThreshold: 30
+            timeoutSeconds: 1
+            periodSeconds: 5
+          volumeMounts:
+            - name: ha-config-root
+              mountPath: /config
+            - name: ha-time
+              mountPath: /etc/localtime
+              readOnly: true
+      restartPolicy: Always
+      volumes:
+        - name: ha-config-root
+          persistentVolumeClaim:
+            claimName: assistant-claim-config
+        - name: ha-time
+          persistentVolumeClaim:
+            claimName: assistant-claim-time

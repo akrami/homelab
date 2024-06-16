@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: assistant-ingress
+  namespace: home
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: home.example.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: assistant-service
+                port:
+                  number: 8123
