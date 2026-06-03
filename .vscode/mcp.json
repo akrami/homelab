@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "omni": {
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/omni",
+      "args": [
+        "--mcp"
+      ],
+      "env": {
+        "OMNI_AGENT_ID": "vscode"
+      }
+    }
+  }
+}

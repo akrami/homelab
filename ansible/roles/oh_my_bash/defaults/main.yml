@@ -1,0 +1,4 @@
+---
+oh_my_bash_repo: "https://github.com/ohmybash/oh-my-bash.git"
+oh_my_bash_install_script: "https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh"
+oh_my_bash_theme: "font"

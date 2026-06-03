@@ -1,0 +1,3 @@
+---
+tailscale_auth_key: "" # Provide your Tailscale Auth Key or OAuth client secret here
+tailscale_args: ""     # Additional arguments for 'tailscale up'

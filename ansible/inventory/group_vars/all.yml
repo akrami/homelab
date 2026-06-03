@@ -1,0 +1,8 @@
+---
+ansible_user: nick
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+
+# Homelab specific variables
+os_distribution: debian
+os_release: trixie

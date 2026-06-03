@@ -1,0 +1,39 @@
+---
+- name: Install dependencies
+  ansible.builtin.apt:
+    name:
+      - git
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Check if Oh My Bash is already installed
+  ansible.builtin.stat:
+    path: "~{{ ansible_user }}/.oh-my-bash"
+  register: omb_stat
+
+- name: Download Oh My Bash install script
+  ansible.builtin.get_url:
+    url: "{{ oh_my_bash_install_script }}"
+    dest: "/tmp/oh-my-bash-install.sh"
+    mode: '0755'
+  when: not omb_stat.stat.exists
+
+- name: Install Oh My Bash
+  ansible.builtin.shell: "/tmp/oh-my-bash-install.sh --unattended"
+  become_user: "{{ ansible_user }}"
+  when: not omb_stat.stat.exists
+  register: omb_install
+
+- name: Clean up install script
+  ansible.builtin.file:
+    path: "/tmp/oh-my-bash-install.sh"
+    state: absent
+  when: not omb_stat.stat.exists
+
+- name: Set Oh My Bash theme
+  ansible.builtin.lineinfile:
+    path: "~{{ ansible_user }}/.bashrc"
+    regexp: '^OSH_THEME='
+    line: 'OSH_THEME="{{ oh_my_bash_theme }}"'
+  become_user: "{{ ansible_user }}"
