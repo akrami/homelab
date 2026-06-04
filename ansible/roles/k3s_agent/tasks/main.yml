@@ -1,0 +1,9 @@
+---
+- name: Get local IPv6 address
+  ansible.builtin.set_fact:
+    local_ipv6: "{{ (ansible_facts['eth0']['ipv6'] | selectattr('scope', 'equalto', 'global') | first).address }}"
+
+- name: Install k3s agent
+  ansible.builtin.shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} K3S_URL=https://{{ hostvars[groups['k3s_master'][0]]['local_ip'] }}:6443 K3S_TOKEN={{ hostvars[groups['k3s_master'][0]]['k3s_node_token'] }} sh -s - agent \
+    --node-ip={{ local_ip }},{{ local_ipv6 }}

@@ -5,3 +5,5 @@
   roles:
     - locale
     - hostname
+    - common_packages
+    - common

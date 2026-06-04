@@ -1,0 +1,105 @@
+---
+- name: Install Helm
+  ansible.builtin.shell: |
+    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+  args:
+    creates: /usr/local/bin/helm
+
+- name: Add Helm repositories
+  ansible.builtin.shell: |
+    /usr/local/bin/helm repo add jetstack https://charts.jetstack.io
+    /usr/local/bin/helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+    /usr/local/bin/helm repo update
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Install cert-manager
+  ansible.builtin.shell: |
+    /usr/local/bin/helm upgrade --install cert-manager jetstack/cert-manager \
+      --namespace cert-manager \
+      --create-namespace \
+      --set installCRDs=true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+- name: Create Cloudflare API Token Secret
+  ansible.builtin.shell: |
+    kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic cloudflare-api-token-secret \
+      --from-literal=api-token={{ cloudflare_token }} \
+      --namespace cert-manager \
+      --dry-run=client -o yaml | kubectl apply -f -
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cloudflare_token is defined
+
+- name: Create ClusterIssuer
+  ansible.builtin.shell: |
+    cat <<EOF | kubectl apply -f -
+    apiVersion: cert-manager.io/v1
+    kind: ClusterIssuer
+    metadata:
+      name: letsencrypt-cloudflare
+    spec:
+      acme:
+        email: {{ acme_email }}
+        server: https://acme-v02.api.letsencrypt.org/directory
+        privateKeySecretRef:
+          name: letsencrypt-cloudflare-account-key
+        solvers:
+        - dns01:
+            cloudflare:
+              apiTokenSecretRef:
+                name: cloudflare-api-token-secret
+                key: api-token
+    EOF
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cloudflare_token is defined and acme_email is defined
+
+- name: Install external-dns
+  ansible.builtin.shell: |
+    /usr/local/bin/helm upgrade --install external-dns external-dns/external-dns \
+      --namespace external-dns \
+      --create-namespace \
+      --set provider=cloudflare \
+      --set env[0].name=CF_API_TOKEN \
+      --set env[0].value={{ cloudflare_token }} \
+      --set domainFilters={akrami.xyz} \
+      --set policy=sync \
+      --set registry=txt \
+      --set txtOwnerId=k3s-homelab
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cloudflare_token is defined
+
+- name: Deploy cloudflared (Cloudflare Tunnel)
+  ansible.builtin.shell: |
+    cat <<EOF | kubectl apply -f -
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: cloudflared
+      namespace: default
+    spec:
+      selector:
+        matchLabels:
+          app: cloudflared
+      template:
+        metadata:
+          labels:
+            app: cloudflared
+        spec:
+          containers:
+          - name: cloudflared
+            image: cloudflare/cloudflared:latest
+            args:
+            - tunnel
+            - --no-autoupdate
+            - run
+            - --token
+            - {{ cloudflare_tunnel_token }}
+    EOF
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cloudflare_tunnel_token != ""

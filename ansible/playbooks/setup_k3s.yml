@@ -1,0 +1,19 @@
+---
+- name: Install K3s Cluster
+  hosts: k3s_cluster
+  become: yes
+  tasks:
+    - name: Import k3s server role
+      ansible.builtin.import_role:
+        name: k3s_server
+      when: inventory_hostname in groups['k3s_master']
+
+    - name: Import k3s agent role
+      ansible.builtin.import_role:
+        name: k3s_agent
+      when: inventory_hostname in groups['k3s_worker']
+
+    - name: Import k3s_apps role
+      ansible.builtin.import_role:
+        name: k3s_apps
+      when: inventory_hostname in groups['k3s_master']
