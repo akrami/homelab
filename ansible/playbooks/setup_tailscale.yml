@@ -1,6 +1,6 @@
 ---
 - name: Setup Tailscale
   hosts: all
-  become: yes
+  become: true
   roles:
     - tailscale

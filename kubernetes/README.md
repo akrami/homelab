@@ -28,7 +28,7 @@ To re-deploy or update the cluster, use the playbooks in the `ansible/` director
 ansible-playbook -i inventory/tailscale_hosts.sh playbooks/baseline.yml
 
 # Install/Update K3s and Core Apps
-ansible-playbook -i inventory/tailscale_hosts.sh playbooks/setup_k3s.yml -e @playbooks/k3s_vars.yml
+ansible-playbook -i inventory/tailscale_hosts.sh playbooks/setup_k3s.yml
 ```
 
 ### Direct Access

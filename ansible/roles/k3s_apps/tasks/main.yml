@@ -1,17 +1,22 @@
 ---
 - name: Install Helm
   ansible.builtin.shell: |
-    curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    set -o pipefail
+    curl -s https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
   args:
     creates: /usr/local/bin/helm
+    executable: /bin/bash
+  changed_when: true
 
 - name: Add Helm repositories
   ansible.builtin.shell: |
+    set -o pipefail
     /usr/local/bin/helm repo add jetstack https://charts.jetstack.io
     /usr/local/bin/helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
     /usr/local/bin/helm repo update
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
 
 - name: Install cert-manager
   ansible.builtin.shell: |
@@ -21,20 +26,26 @@
       --set installCRDs=true
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
 
 - name: Create Cloudflare API Token Secret
   ansible.builtin.shell: |
+    set -o pipefail
     kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
     kubectl create secret generic cloudflare-api-token-secret \
-      --from-literal=api-token={{ cloudflare_token }} \
+      --from-literal=api-token={{ k3s_apps_cloudflare_token }} \
       --namespace cert-manager \
       --dry-run=client -o yaml | kubectl apply -f -
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  when: cloudflare_token is defined
+  args:
+    executable: /bin/bash
+  when: k3s_apps_cloudflare_token != ""
+  changed_when: true
 
 - name: Create ClusterIssuer
   ansible.builtin.shell: |
+    set -o pipefail
     cat <<EOF | kubectl apply -f -
     apiVersion: cert-manager.io/v1
     kind: ClusterIssuer
@@ -42,7 +53,7 @@
       name: letsencrypt-cloudflare
     spec:
       acme:
-        email: {{ acme_email }}
+        email: {{ k3s_apps_acme_email }}
         server: https://acme-v02.api.letsencrypt.org/directory
         privateKeySecretRef:
           name: letsencrypt-cloudflare-account-key
@@ -55,7 +66,12 @@
     EOF
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  when: cloudflare_token is defined and acme_email is defined
+  args:
+    executable: /bin/bash
+  when:
+    - k3s_apps_cloudflare_token != ""
+    - k3s_apps_acme_email != ""
+  changed_when: true
 
 - name: Install external-dns
   ansible.builtin.shell: |
@@ -64,17 +80,19 @@
       --create-namespace \
       --set provider=cloudflare \
       --set env[0].name=CF_API_TOKEN \
-      --set env[0].value={{ cloudflare_token }} \
-      --set domainFilters={akrami.xyz} \
+      --set env[0].value={{ k3s_apps_cloudflare_token }} \
+      --set domainFilters={ {{ k3s_apps_domain }} } \
       --set policy=sync \
       --set registry=txt \
       --set txtOwnerId=k3s-homelab
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  when: cloudflare_token is defined
+  when: k3s_apps_cloudflare_token != ""
+  changed_when: true
 
 - name: Deploy cloudflared (Cloudflare Tunnel)
   ansible.builtin.shell: |
+    set -o pipefail
     cat <<EOF | kubectl apply -f -
     apiVersion: apps/v1
     kind: Deployment
@@ -98,8 +116,11 @@
             - --no-autoupdate
             - run
             - --token
-            - {{ cloudflare_tunnel_token }}
+            - {{ k3s_apps_cloudflare_tunnel_token }}
     EOF
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
-  when: cloudflare_tunnel_token != ""
+  args:
+    executable: /bin/bash
+  when: k3s_apps_cloudflare_tunnel_token != ""
+  changed_when: true

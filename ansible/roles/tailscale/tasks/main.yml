@@ -2,28 +2,34 @@
 - name: Check if Tailscale is installed
   ansible.builtin.command: tailscale version
   register: tailscale_check
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Install Tailscale using official script
-  ansible.builtin.shell: curl -fsSL https://tailscale.com/install.sh | sh
+  ansible.builtin.shell: |
+    set -o pipefail
+    curl -fsSL https://tailscale.com/install.sh | sh
+  args:
+    executable: /bin/bash
   when: tailscale_check.rc != 0
+  changed_when: true
 
 - name: Enable and start Tailscale service
   ansible.builtin.systemd:
     name: tailscaled
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Check Tailscale status
   ansible.builtin.command: tailscale status --json
   register: tailscale_status
   changed_when: false
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Bring Tailscale up (Authenticate)
   ansible.builtin.command: "tailscale up --authkey={{ tailscale_auth_key }} {{ tailscale_args }}"
-  when: 
+  when:
     - tailscale_auth_key != ""
-    - "not (tailscale_status.stdout | from_json).BackendState == 'Running'"
+    - "(tailscale_status.stdout | from_json).BackendState != 'Running'"
   no_log: true
+  changed_when: true

@@ -4,19 +4,15 @@
     path: /boot/firmware/cmdline.txt
     regexp: '^((?!.*cgroup_memory=1 cgroup_enable=memory).*)$'
     replace: '\1 cgroup_memory=1 cgroup_enable=memory'
-  register: cgroup_config
-
-- name: Reboot nodes if cgroups were enabled
-  ansible.builtin.reboot:
-    msg: "Rebooting to enable cgroups for k3s"
-  when: cgroup_config.changed
+  register: common_cgroup_config
+  notify: Reboot nodes
 
 - name: Enable IPv6 forwarding
   ansible.posix.sysctl:
     name: "{{ item }}"
     value: '1'
     state: present
-    reload: yes
+    reload: true
   loop:
     - net.ipv6.conf.all.forwarding
     - net.ipv6.conf.default.forwarding

@@ -1,5 +1,5 @@
 ---
-cloudflare_token: ""
-cloudflare_tunnel_token: ""
-acme_email: ""
-domain: akrami.xyz
+k3s_apps_cloudflare_token: ""
+k3s_apps_cloudflare_tunnel_token: ""
+k3s_apps_acme_email: ""
+k3s_apps_domain: akrami.xyz

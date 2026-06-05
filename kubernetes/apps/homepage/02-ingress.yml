@@ -8,17 +8,17 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-cloudflare
 spec:
   rules:
-  - host: www.akrami.xyz
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: homepage
-            port:
-              number: 80
+    - host: www.akrami.xyz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homepage
+                port:
+                  number: 80
   tls:
-  - hosts:
-    - www.akrami.xyz
-    secretName: homepage-tls
+    - hosts:
+        - www.akrami.xyz
+      secretName: homepage-tls

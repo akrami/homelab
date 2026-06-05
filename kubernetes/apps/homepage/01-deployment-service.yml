@@ -14,17 +14,17 @@ spec:
         app: homepage
     spec:
       containers:
-      - name: nginx
-        image: nginx:alpine
-        ports:
-        - containerPort: 80
-        volumeMounts:
-        - name: html
-          mountPath: /usr/share/nginx/html
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
       volumes:
-      - name: html
-        configMap:
-          name: homepage-html
+        - name: html
+          configMap:
+            name: homepage-html
 ---
 apiVersion: v1
 kind: Service
@@ -35,5 +35,5 @@ spec:
   selector:
     app: homepage
   ports:
-  - port: 80
-    targetPort: 80
+    - port: 80
+      targetPort: 80

@@ -1,16 +1,20 @@
 ---
 - name: Get local IPv6 address
   ansible.builtin.set_fact:
-    local_ipv6: "{{ (ansible_facts['eth0']['ipv6'] | selectattr('scope', 'equalto', 'global') | first).address }}"
+    k3s_server_local_ipv6: "{{ (ansible_facts['eth0']['ipv6'] | selectattr('scope', 'equalto', 'global') | first).address }}"
 
 - name: Install k3s server
   ansible.builtin.shell: |
+    set -o pipefail
     curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION={{ k3s_version }} sh -s - server \
     --cluster-cidr={{ k3s_cluster_cidr }} \
     --service-cidr={{ k3s_service_cidr }} \
-    --node-ip={{ local_ip }},{{ local_ipv6 }} \
+    --node-ip={{ local_ip }},{{ k3s_server_local_ipv6 }} \
     --advertise-address={{ local_ip }} \
     --cluster-init
+  args:
+    executable: /bin/bash
+  changed_when: true
 
 - name: Wait for node token
   ansible.builtin.wait_for:
@@ -19,8 +23,9 @@
 - name: Read node token
   ansible.builtin.slurp:
     src: /var/lib/rancher/k3s/server/node-token
-  register: node_token_encoded
+  register: k3s_server_node_token_encoded
 
 - name: Set node token fact
   ansible.builtin.set_fact:
-    k3s_node_token: "{{ node_token_encoded.content | b64decode | trim }}"
+    k3s_server_node_token: "{{ k3s_server_node_token_encoded.content | b64decode | trim }}"
+    cacheable: true

@@ -1,4 +1,4 @@
 ---
-common_packages:
+common_packages_list:
   - vim
   - htop

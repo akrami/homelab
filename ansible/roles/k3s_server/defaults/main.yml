@@ -1,4 +1,2 @@
 ---
-k3s_version: v1.30.1+k3s1
-k3s_cluster_cidr: "10.42.0.0/16,fd00:42::/48"
-k3s_service_cidr: "10.43.0.0/16,fd00:43::/112"
+# Variables are now in inventory/group_vars/all.yml

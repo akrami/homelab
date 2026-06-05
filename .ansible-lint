@@ -1,0 +1,29 @@
+---
+profile: null # Use default profile
+exclude_paths:
+  - .git/
+  - .ansible/
+  - kubernetes/archive/ # Ignore old stuff
+# Mocking roles that are not found during linting (if they are in sibling directories)
+mock_roles:
+  - k3s_server
+  - k3s_agent
+  - k3s_apps
+  - common
+  - common_packages
+  - hostname
+  - locale
+  - oh_my_bash
+  - tailscale
+# This helps with the 'role not found' issues when playbooks are in a subdirectory
+# But better is to set the path properly.
+extra_vars:
+  ansible_user: "nick"
+  oh_my_bash_install_script: "https://raw.githubusercontent.com/ohmybash/oh-my-bash/master/tools/install.sh"
+  oh_my_bash_theme: "font"
+  tailscale_auth_key: ""
+  tailscale_args: ""
+# Ignore specific rules
+skip_list:
+  - internal-error # For vault files
+  - command-instead-of-module # Sometimes curl is preferred for setup scripts
